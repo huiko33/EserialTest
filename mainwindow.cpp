@@ -108,10 +108,10 @@ void MainWindow::setupUIMenu()
     connect(groupStopBits,&QActionGroup::triggered,this,&MainWindow::onStopBitsActionTriggered);
     connect(groupParity,&QActionGroup::triggered,this,&MainWindow::onParityActionTriggered);
 
-    checkedAndTriggerAction(groupBaudRate->actions().at(0));
-    checkedAndTriggerAction(groupDataBits->actions().at(0));
-    checkedAndTriggerAction(groupStopBits->actions().at(0));
-    checkedAndTriggerAction(groupParity->actions().at(0));
+    checkedAndTriggerAction(findActionInMenu(ui->menuBaudRate,115200));
+    checkedAndTriggerAction(findActionInMenu(ui->menuDataBits,QSerialPort::Data8));
+    checkedAndTriggerAction(findActionInMenu(ui->menuStopBits,QSerialPort::OneStop));
+    checkedAndTriggerAction(findActionInMenu(ui->menuParity,QSerialPort::NoParity));
     checkedAndTriggerAction(lineEndingGroup->actions().at(0));
     checkedAndTriggerAction(interLineDelayGroup->actions().at(0));
     // groupBaudRate->actions().at(0)->triggered(true);
@@ -233,7 +233,7 @@ void MainWindow::on_Btn_Send_clicked()
     QByteArray payload = str.toUtf8();
     payload += lineEndingBytes();
 
-    //qDebug().noquote() << "TX" << payload.toHex(' ');
+    qDebug().noquote() << "TX" << payload.toHex(' ');
 
     emit sendDataRequest(payload);
     ui->edit_Send->clear();
@@ -242,7 +242,9 @@ void MainWindow::on_Btn_Send_clicked()
 void MainWindow::onRecivedData(const QByteArray & data)
 {
     const QString text = m_recvdecoder(data);
-    if(m_recvdecoder.hasError()){/*TODO*/};
+    if(m_recvdecoder.hasError()){
+        statusBar()->showMessage(tr("收到非 UTF-8 数据，请检查串口参数"), 3000);
+    };
     ui->edit_recivie->moveCursor(QTextCursor::End);
     ui->edit_recivie->insertPlainText(text);
 }
@@ -394,9 +396,8 @@ void MainWindow::closeEvent(QCloseEvent *event)
 
 void MainWindow::checkedAndTriggerAction(QAction *act)
 {
-    if(act == nullptr) //之前没加这个判断为空就返回导致如果没有配置文件或者配置文件为空则无法启动
+    if(!act)           //之前没加这个判断为空就返回导致如果没有配置文件或者配置文件为空则无法启动
         return;        //加上之后没有或者为空都可以正常启动
-    act->setChecked(true);
 
     act->trigger();
 }

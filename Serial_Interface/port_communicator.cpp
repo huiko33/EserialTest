@@ -119,7 +119,6 @@ void Port_Communicator::onReadyRead()
 
 void Port_Communicator::sendData(QByteArray data)
 {
-
     if(!m_port->isOpen())
         return;
 

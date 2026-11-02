@@ -95,12 +95,12 @@ void Serial_Interface::stopSerialPort(int baudRate, int dataBits, int stopBits, 
 
 void Serial_Interface::onReadyLoadSettings()
 {
-    qint32 baudRate = m_settings->getUintValue(SETTING_KEY_BAUD_RATE);
-    int dataBits = m_settings->getIntValue(SETTING_KEY_DATA_BITS);
-    int parity = m_settings->getIntValue(SETTING_KEY_PARITY);
-    int stopBits = m_settings->getIntValue(SETTING_KEY_STOP_BITS);
-    int lineEnding = m_settings->getIntValue(SETTING_KEY_LINE_ENDING);
-    int interLineDelay = m_settings->getIntValue(SETTING_KEY_INTERLINE_DELAY);
+    qint32 baudRate = m_settings->getUintValue(SETTING_KEY_BAUD_RATE,115200);
+    int dataBits = m_settings->getIntValue(SETTING_KEY_DATA_BITS,QSerialPort::Data8);
+    int parity = m_settings->getIntValue(SETTING_KEY_PARITY,QSerialPort::NoParity);
+    int stopBits = m_settings->getIntValue(SETTING_KEY_STOP_BITS,QSerialPort::OneStop);
+    int lineEnding = m_settings->getIntValue(SETTING_KEY_LINE_ENDING,0);
+    int interLineDelay = m_settings->getIntValue(SETTING_KEY_INTERLINE_DELAY,1);
 
     emit initialSettingsLoaded(baudRate,dataBits,parity,stopBits,lineEnding,interLineDelay);
 }
