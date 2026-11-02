@@ -1,0 +1,32 @@
+# ---- Qt / qmake 编译产物 ----
+debug/
+release/
+build-*/
+*.o
+*.obj
+*.exe
+*.dll
+*.a
+*.lib
+*.pdb
+
+# ---- uic / moc 生成的代码 ----
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.moc
+
+# ---- qmake 生成 ----
+Makefile
+Makefile.Debug
+Makefile.Release
+.qmake.stash
+
+# ---- Qt Creator 本机配置 ----
+*.pro.user
+*.pro.user.*
+.qtcreator/
+
+# ---- 无关的独立仓库 ----
+serialPort/
