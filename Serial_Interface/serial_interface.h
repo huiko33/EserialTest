@@ -22,6 +22,10 @@ public:
     void setStopBits(int);
     void setParity(int);
     void stopSerialPort(int baudRate,int dataBits,int stopBits,int parity,int lineEnding,int interLineDelay);
+
+    //依旧发送文件相关
+    void sendFile(const QString &filePaht); //给mainwindow调用用的，毕竟mainwindow直接类外触发SerialPort的信号不太好
+    void cancelFileSend();                  //同上，类外调用不规范
 public slots:
     void onReadyLoadSettings();
 private:
@@ -45,6 +49,12 @@ signals:
     void sendDataRequest(QByteArray data);
     void receivedData(const QByteArray& data);
     void initialSettingsLoaded(qint32,int,int,int,int,int);
+
+    //依旧
+    void fileSendRequest(const QString& filePath);
+    void cancelFileSendRequest();
+    void fileSendProgress(qint64 sent,qint64 total);
+    void fileSendFinished(bool ok, const QString &message);
 
 };
 

@@ -5,6 +5,8 @@
 #include "QStringList"
 #include "Serial_Interface/SerialTypes.h"
 #include "QStringDecoder"
+#include "QElapsedTimer"
+#include "QProgressBar"
 QT_BEGIN_NAMESPACE
 namespace Ui {
 class MainWindow;
@@ -46,6 +48,11 @@ private:
     void closeEvent(QCloseEvent *event);
 
     void checkedAndTriggerAction(QAction* act);
+
+    //依旧
+    QElapsedTimer *m_fileClock = nullptr;
+    QProgressBar  *m_fileBar   = nullptr;
+    bool           m_fileSending = false;
 private slots:
     void doFLushBtnClicked();
     void doPortListUpdate(QString port,QStringList portList);
@@ -65,6 +72,10 @@ private slots:
     void onPortClosed();
     void applyInitiaSettings(qint32 baud,int dataBits,int parity,int stopBits,int lineEnding,int interLineDelay);
 
+    //依旧文件相关
+    void on_Btn_SendFile_clicked();
+    void onFileSendProgress(qint64 sent,qint64 total);
+    void onFileSendFinished(bool ok, const QString &message);
 signals:
     void flushPortListRequest(QString);
     void portOpenRequest(QString);

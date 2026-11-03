@@ -1,11 +1,21 @@
 #include "port_communicator.h"
 #include "Serial_Interface/QDebugtools.h"
 #include "QMessageBox"
+#include "QFile"
+static constexpr qint64 kChunkSize = 1024;
+static constexpr qint64 kHighWater = 4096;
+static constexpr int    kPumpInterval = 10;
+static constexpr qint64 kReportStep = 8192;
 
 Port_Communicator::Port_Communicator(QObject *parent)
     : QObject{parent},m_port(new QSerialPort(this))
 {
     connect(m_port,&QSerialPort::readyRead,this,&Port_Communicator::onReadyRead);
+
+    m_fileTimer = new QTimer(this);
+    m_fileTimer->setInterval(kPumpInterval);
+    connect(m_fileTimer,&QTimer::timeout,this,&Port_Communicator::pumpFileChunk);
+
     //connect(m_port,&QSerialPort::bytesWritten,this,&Port_Communicator::onBytesWritten);
 }
 
@@ -36,6 +46,16 @@ bool Port_Communicator::applySettings()
     return true;
 }
 
+void Port_Communicator::finishFileSend(bool ok, const QString &message)
+{
+    if(m_fileTimer)     m_fileTimer->stop();
+    if(m_file.isOpen()) m_file.close();
+    m_pending.clear();
+    m_abortRequested    = false;
+    m_fileSending       = false;
+    emit fileSendFinished(ok,message);
+}
+
 void Port_Communicator::openPort(const QString &portName)
 {
     if(portName.isEmpty()){
@@ -61,6 +81,9 @@ void Port_Communicator::openPort(const QString &portName)
 
 void Port_Communicator::closePort()
 {
+    if(m_fileSending)
+        finishFileSend(false,tr("端口关闭，发送终止"));
+
     if(!m_port->isOpen()){
         return;
     }
@@ -126,5 +149,105 @@ void Port_Communicator::sendData(QByteArray data)
 
     if(res < 0){
         return;
+    }
+}
+
+void Port_Communicator::sendFile(const QString &filePath)
+{
+    if(!m_port->isOpen()){
+        emit fileSendFinished(false,tr("串口未打开"));
+        return;
+    }
+    if(m_fileSending){
+        emit fileSendFinished(false,tr("已有串口在发送中"));
+        return;
+    }
+
+    m_file.setFileName(filePath);
+    if(!m_file.open(QIODevice::ReadOnly)){
+        emit fileSendFinished(false,tr("无法打开文件:%1").arg(m_file.errorString()));
+        return;
+    }
+
+    m_fileTotal = m_file.size();
+    m_fileSent  = 0;
+    m_lastreported  = 0;
+    m_pending.clear();
+
+    if(m_fileTotal <= 0){
+        m_file.close();
+        emit fileSendFinished(false,tr("文件为空"));
+        return;
+    }
+
+    m_fileSending = true;
+    emit fileSendProgress(0,m_fileTotal);
+    m_fileTimer->start();
+}
+
+void Port_Communicator::cancelFileSend()
+{
+    if (!m_fileSending || m_abortRequested)
+        return;
+
+    m_abortRequested = true;
+    m_abortClock.start();
+
+    // 停止投喂
+    if (m_file.isOpen())
+        m_file.close();
+    m_pending.clear();
+
+}
+
+void Port_Communicator::pauseFileSend(bool pause)
+{
+    if(!m_fileSending) return;
+    if(pause) m_fileTimer->stop();
+    else m_fileTimer->start();
+}
+
+void Port_Communicator::pumpFileChunk()
+{
+    if(!m_port->isOpen()){
+        finishFileSend(false,tr("串口已关闭，发送终止"));
+        return;
+    }
+
+    if (m_abortRequested) {
+        if (m_port->bytesToWrite() == 0) {
+            finishFileSend(false, tr("已取消"));
+        } else if (m_abortClock.elapsed() > 5000) {
+            finishFileSend(false, tr("取消后数据未能排空，设备可能无响应"));
+        }
+        return;
+    }
+
+    if(m_port->bytesToWrite() > kHighWater)
+        return;
+
+    if(m_pending.isEmpty()){
+        m_pending = m_file.read(kChunkSize);
+
+        if(m_pending.isEmpty()){
+            if(m_port->bytesToWrite() == 0){
+                emit fileSendProgress(m_fileTotal,m_fileTotal);
+                finishFileSend(true,tr("发送完成"));
+            }
+            return;
+        }
+    }
+
+    const qint64 n = m_port->write(m_pending);
+    if(n < 0){
+        finishFileSend(false,tr("写入失败:%").arg(m_port->errorString()));
+        return;
+    }
+    m_pending.remove(0,int(n));
+    m_fileSent +=n;
+
+    if(m_fileSent - m_lastreported >= kReportStep){
+        m_lastreported = m_fileSent;
+        emit fileSendProgress(m_fileSent, m_fileTotal);
     }
 }

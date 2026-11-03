@@ -7,7 +7,6 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    Serial_Interface/fileline_provider.cpp \
     Serial_Interface/port_communicator.cpp \
     Serial_Interface/portdiscover.cpp \
     Serial_Interface/serial_interface.cpp \
@@ -19,7 +18,6 @@ SOURCES += \
 HEADERS += \
     Serial_Interface/QDebugtools.h \
     Serial_Interface/SerialTypes.h \
-    Serial_Interface/fileline_provider.h \
     Serial_Interface/port_communicator.h \
     Serial_Interface/portdiscover.h \
     Serial_Interface/serial_interface.h \

@@ -61,7 +61,12 @@ void Serial_Interface::connectSerialPortsSignals()
     /*                                                                    */ //发送和接收
     connect(this,&Serial_Interface::sendDataRequest,m_portCommunicator,&Port_Communicator::sendData);
     connect(m_portCommunicator,&Port_Communicator::dataRecived,this,&Serial_Interface::receivedData);
-
+    /*                                                                    */ //这下面的是文件发送
+    //这里主线程到工作线程属于跨线程了，于是用connect让Qt处理跨线程问题，而不是直接调用Port_Communicator::sendFile()，下面的取消也是
+    connect(this,&Serial_Interface::fileSendRequest,m_portCommunicator,&Port_Communicator::sendFile);
+    connect(this,&Serial_Interface::cancelFileSendRequest,m_portCommunicator,&Port_Communicator::cancelFileSend);
+    connect(m_portCommunicator,&Port_Communicator::fileSendProgress,this,&Serial_Interface::fileSendProgress);
+    connect(m_portCommunicator,&Port_Communicator::fileSendFinished,this,&Serial_Interface::fileSendFinished);
 }
 
 void Serial_Interface::setBaudRate(qint32 BaudRate)
@@ -91,6 +96,16 @@ void Serial_Interface::stopSerialPort(int baudRate, int dataBits, int stopBits, 
     m_settings->setIntValue(SETTING_KEY_INTERLINE_DELAY,interLineDelay);
 
     m_settings->saveSettings();
+}
+
+void Serial_Interface::sendFile(const QString &filePaht)
+{
+    emit fileSendRequest(filePaht);
+}
+
+void Serial_Interface::cancelFileSend()
+{
+    emit cancelFileSendRequest();
 }
 
 void Serial_Interface::onReadyLoadSettings()

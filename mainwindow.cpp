@@ -5,6 +5,9 @@
 #include "Serial_Interface/QDebugtools.h"
 #include "Serial_Interface/serial_interface.h"
 #include "QActionGroup"
+#include "QFileDialog"
+#include "QMessageBox"
+
 #define START_STR "Start"
 #define STOP_STR "Stop"
 
@@ -14,8 +17,18 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
     m_serial = new Serial_Interface(this);
-    setupUIMenu();
 
+    //在状态栏右侧挂一个默认隐藏的进度条，没错是文件相关
+    m_fileBar = new QProgressBar(this);
+    m_fileBar->setMaximumWidth(180);
+    m_fileBar->setRange(0,100);
+    m_fileBar->setVisible(false);
+    statusBar()->addPermanentWidget(m_fileBar);
+    m_fileClock = new QElapsedTimer;
+
+
+
+    setupUIMenu();
     connectUiEventReceivers();
 
     connectSerialPortsSignals();
@@ -26,6 +39,7 @@ MainWindow::MainWindow(QWidget *parent)
 
 MainWindow::~MainWindow()
 {
+    delete m_fileClock;
     delete ui;
 }
 
@@ -58,6 +72,9 @@ void MainWindow::connectUiEventReceivers()
     /*-------------------------------------------------------------------------------------*/
     connect(this,&MainWindow::loadSettingsRequest,m_serial,&Serial_Interface::onReadyLoadSettings);
     connect(m_serial,&Serial_Interface::initialSettingsLoaded,this,&MainWindow::applyInitiaSettings);
+    /*-------------------------------------------------------------------------------------*/ //sendfile相关
+    connect(m_serial,&Serial_Interface::fileSendProgress,this,&MainWindow::onFileSendProgress);
+    connect(m_serial,&Serial_Interface::fileSendFinished,this,&MainWindow::onFileSendFinished);
 }
 
 //用的QSerialPortInfo::standardBaudRates(),因此无法使用通用helper,可以重载或者写个BaudRate的List但是我懒了而且这玩意已经有了感觉没什么必要
@@ -223,7 +240,6 @@ void MainWindow::on_Btn_SerialPort_clicked()
     }
 }
 
-
 void MainWindow::on_Btn_Send_clicked()
 {
     //linkData();
@@ -383,15 +399,16 @@ QAction* MainWindow::findActionInMenu(QMenu *menu, int data)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+    if(m_fileSending)
+        m_serial->cancelFileSend();
+
     m_serial->stopSerialPort(groupBaudRate->checkedAction()->data().toInt(),
                              groupDataBits->checkedAction()->data().toInt(),
                              groupStopBits->checkedAction()->data().toInt(),
                              groupParity->checkedAction()->data().toInt(),
                              lineEndingGroup->checkedAction()->data().toInt(),
                              interLineDelayGroup->checkedAction()->data().toInt());
-
-
-
+    QMainWindow::closeEvent(event);
 }
 
 void MainWindow::checkedAndTriggerAction(QAction *act)
@@ -400,5 +417,62 @@ void MainWindow::checkedAndTriggerAction(QAction *act)
         return;        //加上之后没有或者为空都可以正常启动
 
     act->trigger();
+}
+
+
+void MainWindow::on_Btn_SendFile_clicked()
+{
+    if(m_fileSending){
+        m_serial->cancelFileSend();
+        ui->Btn_SendFile->setEnabled(false);
+        ui->Btn_SendFile->setText(tr("正在取消…"));
+        return;
+    }
+
+    const QString path = QFileDialog::getOpenFileName(this,tr("选择要发送的文件"),QString(),tr("所有文件(*.*)"));
+
+    if(path.isEmpty())
+        return;
+
+    m_fileSending = true;
+    m_fileClock->start();
+    m_fileBar->setValue(0);
+    m_fileBar->setVisible(true);
+
+    ui->Btn_Send->setEnabled(false);
+    ui->Btn_SendFile->setText(tr("Cancel"));
+
+    m_serial->sendFile(path);
+}
+
+void MainWindow::onFileSendProgress(qint64 sent, qint64 total)
+{
+    if(total <= 0)
+        return;
+
+    m_fileBar->setValue(int(sent * 100 / total));
+
+    const qint64 ms = qMax<qint64>(1,m_fileClock->elapsed());
+    const double kbps = double(sent) / 1024.0 * 1000.0 / double(ms);
+    const qint64 remainSec = (kbps > 0.01) ? qint64((total - sent) / 1024.0 / kbps) : 0;
+
+    statusBar()->showMessage(tr("发送中 %1 / %2 KB   %3 KB/s   剩余%4 s").arg(sent / 1024).arg(total / 1024)
+                                 .arg(kbps,0,'f',1).arg(remainSec));
+
+
+}
+
+void MainWindow::onFileSendFinished(bool ok, const QString &message)
+{
+    m_fileSending = false;
+    m_fileBar->setVisible(false);
+
+    ui->Btn_Send->setEnabled(true);
+    ui->Btn_SendFile->setEnabled(true);
+    ui->Btn_SendFile->setText(tr("SendFile"));
+
+    statusBar()->showMessage(message,5000);
+    if(!ok &&message != tr("已取消"))
+        QMessageBox::warning(this,tr("发送失败"),message);
 }
 
