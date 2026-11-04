@@ -131,6 +131,7 @@ void MainWindow::setupUIMenu()
     checkedAndTriggerAction(findActionInMenu(ui->menuParity,QSerialPort::NoParity));
     checkedAndTriggerAction(lineEndingGroup->actions().at(0));
     checkedAndTriggerAction(interLineDelayGroup->actions().at(0));
+
     // groupBaudRate->actions().at(0)->triggered(true);
     // groupDataBits->actions().at(0)->triggered(true);
     // groupStopBits->actions().at(0)->triggered(true);

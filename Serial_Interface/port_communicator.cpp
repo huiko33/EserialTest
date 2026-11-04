@@ -223,6 +223,8 @@ void Port_Communicator::pumpFileChunk()
         return;
     }
 
+    //背压，如果等待QSerialPort写入的数据高于高水位，这次就什么也不做直接return
+    //如果下一次进入pumpFileChunk(),QSerialPort写入了足够多的数据导致Qt内部写缓冲中的数据小于高水位则接着往下
     if(m_port->bytesToWrite() > kHighWater)
         return;
 
@@ -240,7 +242,7 @@ void Port_Communicator::pumpFileChunk()
 
     const qint64 n = m_port->write(m_pending);
     if(n < 0){
-        finishFileSend(false,tr("写入失败:%").arg(m_port->errorString()));
+        finishFileSend(false,tr("写入失败:%1").arg(m_port->errorString()));
         return;
     }
     m_pending.remove(0,int(n));

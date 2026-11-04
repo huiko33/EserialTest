@@ -32,7 +32,7 @@ private:
     QActionGroup* groupStopBits;
     QActionGroup* groupParity;
 
-    QStringDecoder m_recvdecoder{QStringDecoder::Utf8};//问AI问到的神秘工具
+    QStringDecoder m_recvdecoder{QStringDecoder::Utf8};//
 
 
     void connectSerialPortsSignals();

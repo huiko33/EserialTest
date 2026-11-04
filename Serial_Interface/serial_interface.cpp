@@ -20,6 +20,8 @@ Serial_Interface::Serial_Interface(QObject *parent)
     workerThread = new QThread(this);
     m_portCommunicator = new Port_Communicator();
     m_portCommunicator->moveToThread(workerThread);
+    qDebug() << workerThread->thread();
+    qDebug() << m_portCommunicator->thread();
 
     connect(workerThread,&QThread::started,m_portCommunicator,&Port_Communicator::onThreadStarted);
     connect(workerThread,&QThread::finished,m_portCommunicator,&Port_Communicator::deleteLater);
